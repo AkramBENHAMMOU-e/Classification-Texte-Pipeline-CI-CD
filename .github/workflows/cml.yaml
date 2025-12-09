@@ -47,21 +47,26 @@ jobs:
           echo "# Rapport de Classification Textuelle" > report.md
           
           # 2. Ajout des métriques JSON
+          echo "" >> report.md
           echo "## Métriques Clés" >> report.md
           echo "\`\`\`json" >> report.md
           cat reports/metrics.json >> report.md
+          echo "" >> report.md
           echo "\`\`\`" >> report.md
           
           # 3. Ajout du rapport texte détaillé
+          echo "" >> report.md
           echo "## Détails par Classe" >> report.md
           echo "\`\`\`" >> report.md
           cat reports/classification_report.txt >> report.md
+          echo "" >> report.md
           echo "\`\`\`" >> report.md
           
           # 4. Ajout de la Matrice de Confusion (Image)
+          # On utilise cml publish pour uploader l'image et obtenir une URL
+          echo "" >> report.md
           echo "## Matrice de Confusion" >> report.md
-          # CML va uploader l'image localement et l'afficher dans le markdown
-          echo "![](./reports/confusion_matrix.png)" >> report.md
+          cml publish reports/confusion_matrix.png --md >> report.md
           
           # 5. Envoi du commentaire sur GitHub
           cml comment create report.md
