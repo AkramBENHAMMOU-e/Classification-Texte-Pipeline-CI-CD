@@ -58,4 +58,4 @@ jobs:
           echo "![](./reports/confusion_matrix.png)" >> report.md
           
           # Envoi du commentaire via CML
-          cml comment create report.md --watermark=no
+          cml comment create report.md
