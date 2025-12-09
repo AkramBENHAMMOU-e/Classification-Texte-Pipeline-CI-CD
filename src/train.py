@@ -2,9 +2,11 @@ import pandas as pd
 import joblib
 import os
 import json
+import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, f1_score, classification_report, precision_score, recall_score
+from sklearn.metrics import accuracy_score, f1_score, classification_report, precision_score, recall_score, confusion_matrix
 
 def main():
     print("Chargement des données nettoyées...")
@@ -19,7 +21,7 @@ def main():
     test_df = test_df.dropna(subset=['processed_text'])
 
     print("Vectorisation (TF-IDF)...")
-    # TF-IDF : on apprend uniquement sur le train (évite le data leakage)
+    # TF-IDF : on apprend uniquement sur le train
     vectorizer = TfidfVectorizer(max_features=5000)
     X_train = vectorizer.fit_transform(train_df['processed_text'])
     X_test = vectorizer.transform(test_df['processed_text'])
@@ -67,12 +69,23 @@ def main():
     # 2. Sauvegarde du rapport texte
     with open("reports/classification_report.txt", "w") as f:
         f.write(report)
+        
+    # 3. Génération et sauvegarde de la matrice de confusion
+    print("Génération de la matrice de confusion...")
+    cm = confusion_matrix(y_test, y_pred)
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(cm, annot=False, fmt='d', cmap='Blues')
+    plt.title('Matrice de Confusion')
+    plt.ylabel('Vrai label')
+    plt.xlabel('Label prédit')
+    plt.savefig('reports/confusion_matrix.png')
+    plt.close()
 
-    # 3. Sauvegarde modèle et vectorizer
+    # 4. Sauvegarde modèle et vectorizer
     joblib.dump(model, 'models/model.joblib')
     joblib.dump(vectorizer, 'models/tfidf_vectorizer.joblib')
     
-    print("Terminé ! Modèle, métriques et rapport sauvegardés.")
+    print("Terminé ! Modèle, métriques, rapport et matrice de confusion sauvegardés.")
 
 if __name__ == "__main__":
     main()

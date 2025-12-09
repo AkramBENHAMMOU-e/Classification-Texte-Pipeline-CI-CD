@@ -54,5 +54,8 @@ jobs:
           cat reports/metrics.json >> report.md
           echo "\`\`\`" >> report.md
           
+          echo "### Matrice de Confusion" >> report.md
+          echo "![](./reports/confusion_matrix.png)" >> report.md
+          
           # Envoi du commentaire via CML
-          cml comment create report.md
+          cml comment create report.md --watermark=no

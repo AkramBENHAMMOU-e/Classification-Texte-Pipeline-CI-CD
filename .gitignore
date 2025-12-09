@@ -7,6 +7,7 @@ models/*.joblib
 reports/*.json
 reports/*.txt
 mlruns/
+screenshots/
 
 # System specific
 .DS_Store
