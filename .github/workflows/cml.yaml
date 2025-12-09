@@ -13,6 +13,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      id-token: write
     steps:
       - uses: actions/checkout@v3
 
@@ -21,8 +22,9 @@ jobs:
         with:
           python-version: '3.9'
 
+      # Utilisation de la v2 qui est le standard actuel
       - name: Setup CML
-        uses: iterative/setup-cml@v1
+        uses: iterative/setup-cml@v2
 
       - name: Install dependencies
         run: |
@@ -30,6 +32,7 @@ jobs:
 
       - name: Preprocess Data
         run: |
+          # On s'assure que les dossiers existent
           python src/preprocess.py
 
       - name: Train Model
@@ -40,21 +43,25 @@ jobs:
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Création du rapport Markdown
+          # 1. Création du titre
           echo "# Rapport de Classification Textuelle" > report.md
-          echo "## Métriques et Performance" >> report.md
           
-          echo "### Classification Report" >> report.md
-          echo "\`\`\`" >> report.md
-          cat reports/classification_report.txt >> report.md
-          echo "\`\`\`" >> report.md
-          
-          echo "### Métriques JSON" >> report.md
+          # 2. Ajout des métriques JSON
+          echo "## Métriques Clés" >> report.md
           echo "\`\`\`json" >> report.md
           cat reports/metrics.json >> report.md
           echo "\`\`\`" >> report.md
           
-
+          # 3. Ajout du rapport texte détaillé
+          echo "## Détails par Classe" >> report.md
+          echo "\`\`\`" >> report.md
+          cat reports/classification_report.txt >> report.md
+          echo "\`\`\`" >> report.md
           
-          # Envoi du commentaire via CML
+          # 4. Ajout de la Matrice de Confusion (Image)
+          echo "## Matrice de Confusion" >> report.md
+          # CML va uploader l'image localement et l'afficher dans le markdown
+          echo "![](./reports/confusion_matrix.png)" >> report.md
+          
+          # 5. Envoi du commentaire sur GitHub
           cml comment create report.md
