@@ -8,6 +8,7 @@ reports/*.json
 reports/*.txt
 mlruns/
 screenshots/
+description/
 
 # System specific
 .DS_Store

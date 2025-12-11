@@ -5,3 +5,5 @@ mlflow
 matplotlib
 seaborn
 joblib
+pytest
+httpx
