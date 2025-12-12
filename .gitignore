@@ -6,10 +6,11 @@ __pycache__/
 models/*.joblib
 reports/*.json
 reports/*.txt
+reports/*.png
 mlruns/
 screenshots/
 description/
+notes/
 
 # System specific
 .DS_Store
-
