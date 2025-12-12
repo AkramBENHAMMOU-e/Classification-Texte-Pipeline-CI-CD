@@ -1,0 +1,67 @@
+<div class="container">
+  <!-- Navbar Fixed -->
+  <nav class="navbar">
+    <div class="navbar-content">
+      <img src="icone-classifieur.png" alt="Logo" class="navbar-logo">
+      <span class="navbar-title">Classifier Vos Articles Avec Précision</span>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Input Section -->
+    <section class="input-section">
+      <label for="textInput" class="input-label">📝 Entrez votre texte à analyser</label>
+      <textarea id="textInput" [(ngModel)]="inputText"
+        placeholder="Collez un article, un email, ou n'importe quel texte en anglais..." rows="6"
+        class="text-input"></textarea>
+
+      <!-- File Upload -->
+      <div class="file-upload">
+        <label for="fileInput" class="file-label">
+          📁 Ou importer (.txt, .md, .pdf, .docx)
+        </label>
+        <input type="file" id="fileInput" accept=".txt,.md,.pdf,.docx" (change)="onFileSelect($event)"
+          class="file-input">
+        <span *ngIf="fileName" class="file-name">{{ fileName }}</span>
+      </div>
+
+      <div class="button-group">
+        <button (click)="classify()" [disabled]="isLoading || !inputText.trim()" class="btn btn-primary">
+          <span *ngIf="!isLoading">→ Analyser</span>
+          <span *ngIf="isLoading">⏳ Analyse...</span>
+        </button>
+
+        <button (click)="clearForm()" class="btn btn-secondary" [disabled]="!inputText && !prediction">
+          ✕ Effacer
+        </button>
+      </div>
+    </section>
+
+    <!-- Error Message -->
+    <div *ngIf="error" class="error-message">
+      ⚠️ {{ error }}
+    </div>
+
+    <!-- Result Section -->
+    <section *ngIf="prediction" class="result-section">
+      <h2>Résultat de l'analyse</h2>
+
+      <div class="result-card">
+        <div class="result-main">
+          <span class="category-icon">{{ getCategoryIcon(prediction.prediction_class_id) }}</span>
+          <span class="category-name">{{ getClassName(prediction.prediction_class_id) }}</span>
+        </div>
+
+        <div class="result-status">
+          ✓ Classification réussie
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>Akram BENHAMMOU - Oussama KHOUYA - Copyright © 2025</p>
+  </footer>
+</div>

@@ -10,3 +10,6 @@ httpx
 fastapi
 uvicorn
 pydantic
+PyPDF2
+python-docx
+python-multipart

@@ -9,7 +9,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: akrambenhammou-e/classification-texte-pipeline-ci-cd
   MIN_ACCURACY: 0.5  # Seuil minimum pour déployer en production
 
 jobs:
@@ -95,21 +95,21 @@ jobs:
           ACCURACY=${{ needs.deploy-staging.outputs.accuracy }}
           MIN=${{ env.MIN_ACCURACY }}
           
-          echo "📊 Accuracy du modèle: $ACCURACY"
-          echo "📊 Seuil minimum: $MIN"
+          echo "Accuracy du modèle: $ACCURACY"
+          echo "Seuil minimum: $MIN"
           
           if (( $(echo "$ACCURACY >= $MIN" | bc -l) )); then
-            echo "✅ Accuracy suffisante pour la production"
+            echo "Accuracy suffisante pour la production"
           else
-            echo "❌ Accuracy insuffisante - ROLLBACK"
+            echo "Accuracy insuffisante - ROLLBACK"
             exit 1
           fi
 
       - name: Deploy to Production
         run: |
-          echo "🚀 Déploiement en PRODUCTION..."
+          echo "Déploiement en PRODUCTION..."
           echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          echo "✅ Production déployée avec succès!"
+          echo "Production déployée avec succès!"
           
           # Ici, on ajouterait les commandes pour déployer sur un vrai serveur
           # Exemple: kubectl apply -f k8s/deployment.yaml
@@ -117,7 +117,7 @@ jobs:
 
       - name: Tag as Production Release
         run: |
-          echo "🏷️ Version taguée comme release de production"
+          echo "Version taguée comme release de production"
           # git tag v$(date +%Y%m%d-%H%M%S)
           # git push --tags
 
@@ -132,7 +132,7 @@ jobs:
     steps:
       - name: Rollback to Previous Version
         run: |
-          echo "⚠️ ROLLBACK DÉCLENCHÉ"
+          echo "Rollback déclenché"
           echo "Raison: Échec de validation ou accuracy insuffisante"
           echo ""
           echo "Actions de rollback:"
@@ -151,7 +151,7 @@ jobs:
             github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: '🔴 Rollback déclenché - Déploiement échoué',
+              title: 'Rollback déclenché - Déploiement échoué',
               body: `## Rollback automatique\n\n**Date**: ${new Date().toISOString()}\n**Workflow Run**: ${context.runId}\n\nLe déploiement a échoué et un rollback a été effectué.\n\nVeuillez investiguer les logs.`,
               labels: ['bug', 'rollback']
             })
