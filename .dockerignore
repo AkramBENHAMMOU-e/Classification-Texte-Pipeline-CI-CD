@@ -1,0 +1,28 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+
+# MLflow logs
+mlruns/
+
+# Tests (pas nécessaires en prod)
+tests/
+
+# Reports locaux
+reports/
+
+# Screenshots
+screenShots/
+
+# IDE
+.vscode/
+.idea/
+
+# Description du projet
+Description/
