@@ -7,3 +7,6 @@ seaborn
 joblib
 pytest
 httpx
+fastapi
+uvicorn
+pydantic
