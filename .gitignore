@@ -8,7 +8,6 @@ reports/*.json
 reports/*.txt
 reports/*.png
 mlruns/
-screenshots/
 description/
 notes/
 
