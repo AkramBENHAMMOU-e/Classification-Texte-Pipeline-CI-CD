@@ -111,7 +111,7 @@ Pour explorer les runs MLflow via une interface web locale :
 mlflow ui --backend-store-uri file:./mlruns
 ```
 
-Puis ouvre dans ton navigateur : <http://127.0.0.1:5000>.
+Puis ouvre dans ton navigateur : <http://localhost:5000>.
 
 # 6. Lancer l’API FastAPI (local)
 

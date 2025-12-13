@@ -1,4 +1,4 @@
-import { Component, NgZone } from '@angular/core';
+import { ChangeDetectorRef, Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
@@ -68,7 +68,7 @@ export class App {
 
   private apiUrl = 'http://localhost:8000';
 
-  constructor(private http: HttpClient, private ngZone: NgZone) {
+  constructor(private http: HttpClient, private cdr: ChangeDetectorRef) {
     this.checkApiStatus();
   }
 
@@ -76,9 +76,11 @@ export class App {
     this.http.get<HealthResponse>(`${this.apiUrl}/health`).subscribe({
       next: (response) => {
         this.apiStatus = response;
+        this.cdr.detectChanges();
       },
       error: () => {
         this.apiStatus = { status: 'offline', model_loaded: false };
+        this.cdr.detectChanges();
       }
     });
   }
@@ -162,19 +164,17 @@ export class App {
 
     this.http.post<PredictionResponse>(`${this.apiUrl}/predict`, { text: this.inputText }).subscribe({
       next: (response) => {
-        this.ngZone.run(() => {
-          console.log('Response received:', response);
-          this.prediction = response;
-          this.isLoading = false;
-          console.log('isLoading:', this.isLoading, 'prediction:', this.prediction);
-        });
+        console.log('Response received:', response);
+        this.prediction = response;
+        this.isLoading = false;
+        console.log('isLoading:', this.isLoading, 'prediction:', this.prediction);
+        this.cdr.detectChanges();
       },
       error: (err) => {
-        this.ngZone.run(() => {
-          console.error('Error:', err);
-          this.error = 'Erreur lors de la classification. Vérifiez que l\'API est en ligne.';
-          this.isLoading = false;
-        });
+        console.error('Error:', err);
+        this.error = 'Erreur lors de la classification. Vérifiez que l\'API est en ligne.';
+        this.isLoading = false;
+        this.cdr.detectChanges();
       }
     });
   }
@@ -194,11 +194,13 @@ export class App {
         this.prediction = response;
         this.isLoading = false;
         this.selectedFile = null;
+        this.cdr.detectChanges();
       },
       error: (err) => {
         this.error = 'Erreur lors de la classification du fichier.';
         this.isLoading = false;
         console.error(err);
+        this.cdr.detectChanges();
       }
     });
   }

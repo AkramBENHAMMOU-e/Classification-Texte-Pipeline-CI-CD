@@ -7,6 +7,16 @@
 \usepackage{geometry}
 \usepackage{float}
 \geometry{margin=2.5cm}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small{Classification de Texte avec Pipeline CI/CD Complet}}
+\fancyhead[R]{\small \thepage/\pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancyfoot[C]{\small{ DevOps \& MLOps}}
+\renewcommand{\footrulewidth}{0.4pt}
 
 \title{Classification de texte avec pipeline CI/CD complet\\\small{Rapport technique}}
 \author{Akram Benhammou \and Oussama Khouya}
@@ -38,7 +48,7 @@
 \end{titlepage}
 
 \tableofcontents
-\bigskip
+\clearpage
 
 \section{Introduction}
 
@@ -128,6 +138,12 @@ Le service de prédiction est implémenté dans \texttt{src/app.py} avec FastAPI
 
 Un script \texttt{src/predict.py} fournit également une interface en ligne de commande pour charger les artefacts et réaliser une prédiction sur un exemple de texte.
 
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{snapshots/fastapi-predict.png}
+  \caption{exmple de requête/réponse de l'API FastAPI}
+\end{figure}
+
 \section{Pipeline CI/CD}
 
 \subsection{Build, tests et image Docker}
@@ -144,6 +160,13 @@ Le workflow \texttt{.github/workflows/docker.yaml} implémente une pipeline de C
 
 Le \texttt{Dockerfile} correspondant utilise \texttt{python:3.9-slim} comme base, installe les dépendances, télécharge les ressources NLTK nécessaires, copie les sources, les artefacts et les données prétraitées, expose le port~8000 et lance l'application via Uvicorn.
 
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.4\textwidth]{snapshots/docker_build.png}
+  \caption{Diagramme du workflow de build, tests et construction/push de l'image Docker}
+\end{figure}
+
+
 \subsection{Rapport automatique avec CML}
 
 Le workflow \texttt{.github/workflows/cml.yaml} s'appuie sur \texttt{iterative/setup-cml} pour générer un rapport expérimental automatique :
@@ -159,6 +182,12 @@ Le workflow \texttt{.github/workflows/cml.yaml} s'appuie sur \texttt{iterative/s
   \end{itemize}
   \item Publication automatique du rapport en commentaire sur la pull request via \texttt{cml comment create}.
 \end{itemize}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.4\textwidth]{snapshots/cml_workflow.png}
+  \caption{Diagramme du workflow de génération automatique du rapport CML}
+\end{figure}
 
 \subsection{Déploiement staging $\rightarrow$ production}
 
@@ -186,6 +215,12 @@ Le workflow \texttt{.github/workflows/deploy.yaml} met en place une logique de d
     \item Crée automatiquement un ticket GitHub décrivant le rollback.
   \end{itemize}
 \end{itemize}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.6\textwidth]{snapshots/deploy_pipeline.png}
+  \caption{Diagramme du workflow de déploiement staging $\rightarrow$ production avec rollback}
+\end{figure}
 
 \section{Choix techniques}
 
