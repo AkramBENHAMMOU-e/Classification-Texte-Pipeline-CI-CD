@@ -227,11 +227,23 @@ Le workflow \texttt{.github/workflows/deploy.yaml} met en place une logique de d
 \subsection{Stack machine learning}
 
 \begin{itemize}
-  \item \textbf{Dataset}~: \emph{20 Newsgroups}, classique pour les tâches de classification de texte multi-classe.
-  \item \textbf{Représentation}~: TF--IDF (\texttt{TfidfVectorizer}) limité à 5000 features pour contrôler la dimensionnalité.
-  \item \textbf{Modèle}~: \texttt{RandomForestClassifier}, modèle robuste et interprétable, moins sensible au scaling des features que d'autres méthodes.
-  \item \textbf{Prétraitement}~: pipeline NLTK (tokenisation, stopwords, lemmatisation) appliqué de façon cohérente entre entraînement et prédiction.
-  \item \textbf{Suivi expérimental}~: MLflow pour tracer hyperparamètres, métriques et artefacts en local (\texttt{file:./mlruns}).
+  \item \textbf{Dataset}~: \emph{20 Newsgroups} 
+  \begin{itemize}
+    \item input : texte brut (email / article en anglais) 
+    \item classes : 20 labels (newsgroups: informatique, sport, politique, religion .. ) 
+    \item chargement : \texttt{sklearn.datasets} 
+  \end{itemize}
+  \item \textbf{Prétraitement linguistique}~: pipeline NLTK
+  \begin{itemize}
+    \item nettoyage regex (\texttt{clean\_text})~: minuscules, suppression ponctuation/chiffres/caractères spéciaux ;
+    \item tokenisation ; stopwords anglais (\texttt{nltk.corpus.stopwords}) ;
+    \item lemmatisation (\texttt{WordNetLemmatizer}).
+  \end{itemize}
+  \item \textbf{Représentation des textes}~: TF--IDF (\texttt{TfidfVectorizer}, 5000 features max) ; fit sur le train uniquement ; sérialisation dans \texttt{models/tfidf\_vectorizer.joblib} ; pas de \emph{train--serving skew}.
+  \item \textbf{Modèle de classification}~: \texttt{RandomForestClassifier} (100 arbres, \texttt{random\_state=42}, \texttt{n\_jobs=-1}) ; baseline robuste ; support forte dimensionnalité TF--IDF.
+  \item \textbf{Métriques et évaluation}~: accuracy, précision, rappel, F1 pondéré (\texttt{sklearn.metrics}) ; matrice de confusion \texttt{reports/confusion\_matrix.png} (\texttt{matplotlib}, \texttt{seaborn}).
+  \item \textbf{Suivi expérimental et artefacts}~: MLflow backend \texttt{file:./mlruns} ; log hyperparamètres (\texttt{max\_features}, \texttt{n\_estimators}, \dots), métriques, artefacts ; modèle sérialisé avec \texttt{joblib} dans \texttt{models/model.joblib}.
+  \item \textbf{Cohérence entraînement / inférence}~: API FastAPI (\texttt{src/app.py}) ; rechargement du modèle et du vectoriseur ; réutilisation du même prétraitement NLTK qu'au training.
 \end{itemize}
 
 \subsection{Stack applicative et DevOps}
