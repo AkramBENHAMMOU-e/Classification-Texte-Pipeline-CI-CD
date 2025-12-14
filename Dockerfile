@@ -6,6 +6,9 @@ WORKDIR /app
 
 # Copier les fichiers de dépendances en premier (pour le cache Docker)
 COPY requirements.txt .
+COPY models/ ./models/
+COPY data/processed/ ./data/processed/
+
 
 # Installer les dépendances
 RUN pip install --no-cache-dir -r requirements.txt
