@@ -47,6 +47,12 @@
   \end{center}
 \end{titlepage}
 
+\section*{Résumé}
+
+Ce rapport présente la conception et la mise en place d'une chaîne MLOps complète pour un problème de classification de texte sur le jeu de données \emph{20 Newsgroups}. Le pipeline couvre le prétraitement linguistique, l'entraînement d'un modèle de classification basé sur TF--IDF et Random Forest, le suivi expérimental avec MLflow, ainsi que la sauvegarde des artefacts. Le modèle est ensuite emballé dans une image Docker et exposé via une API FastAPI, avant d'être intégré dans des workflows CI/CD GitHub Actions pour automatiser les tests, la construction de l'image, la génération de rapports CML et un scénario de déploiement staging $\rightarrow$ production avec rollback. L'objectif est d'illustrer, de bout en bout, les bonnes pratiques DevOps et MLOps autour d'un cas d'usage NLP réaliste.
+
+\clearpage
+
 \tableofcontents
 \clearpage
 
