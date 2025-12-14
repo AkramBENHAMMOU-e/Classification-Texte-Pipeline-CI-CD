@@ -1,0 +1,478 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{float}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+
+\geometry{margin=2.5cm}
+
+% En-têtes et pieds de page
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small{Classification de Texte avec Pipeline CI/CD Complet}}
+\fancyhead[R]{\small \thepage/\pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancyfoot[C]{\small{DevOps \& MLOps}}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% Liens sans cadres colorés
+\hypersetup{
+  hidelinks
+}
+
+\title{Classification de texte avec pipeline CI/CD complet\\\small{Rapport technique}}
+\author{Akram Benhammou \and Oussama Khouya}
+\date{\today}
+
+\begin{document}
+
+%========================
+% Page de garde
+%========================
+\begin{titlepage}
+  \thispagestyle{empty}
+  \begin{center}
+    \vspace*{1cm}
+
+    {\Large \textbf{ENSET / Université Hassan II}}\\[0.8cm]
+
+    {\huge \textbf{Classification de texte avec pipeline CI/CD complet}}\\[0.4cm]
+    {\Large Rapport technique}\\[1.5cm]
+
+    \includegraphics[width=\textwidth]{./snapshots/page-garde.png}\\[1.5cm]
+
+    {\large Réalisé par}\\[0.3cm]
+    {\large Akram Benhammou}\\
+    {\large Oussama Khouya}\\[1cm]
+
+    {\large Encadré par}\\[0.3cm]
+    {\large Professeur Soufiane HAMIDA}\\[2cm]
+
+    {\large \today}
+  \end{center}
+\end{titlepage}
+
+%========================
+% Résumé
+%========================
+\section*{Résumé}
+
+Ce rapport présente la conception et la mise en place d'une chaîne MLOps complète pour un problème de classification de texte sur le jeu de données \emph{20 Newsgroups}. Le pipeline couvre le prétraitement linguistique, l'entraînement d'un modèle de classification basé sur TF--IDF et Random Forest, le suivi expérimental avec MLflow, ainsi que la sauvegarde des artefacts. Le modèle est ensuite emballé dans une image Docker et exposé via une API FastAPI, avant d'être intégré dans des workflows CI/CD GitHub Actions pour automatiser les tests, la construction de l'image, la génération de rapports CML et un scénario de déploiement \emph{staging} $\rightarrow$ \emph{production} avec rollback. L'objectif est d'illustrer, de bout en bout, les bonnes pratiques DevOps et MLOps autour d'un cas d'usage NLP réaliste.
+
+\clearpage
+
+\tableofcontents
+\clearpage
+
+%========================
+% 1. Introduction
+%========================
+\section{Introduction}
+
+\subsection{Contexte et problématique}
+
+Le projet s'inscrit dans le cadre du module \emph{DevOps \& MLOps} et correspond au Projet~9 du guide \og Classification de Texte avec Pipeline CI/CD Complet \fg{}. Un journal en ligne souhaite automatiser la catégorisation de ses articles en fonction de leur contenu, afin de faciliter la navigation, la recommandation et l'analyse éditoriale.
+
+Ce travail met en place une chaîne MLOps complète pour un problème de classification de texte sur le jeu de données \emph{20 Newsgroups}. L'objectif est de couvrir tout le cycle de vie du modèle : prétraitement des données, entraînement et suivi expérimental, packaging dans une image Docker, mise à disposition via une API FastAPI, et automatisation par des pipelines CI/CD GitHub Actions incluant la génération de rapports CML et un flux de déploiement \emph{staging} $\rightarrow$ \emph{production}.
+
+\subsection{Objectifs du projet}
+
+Les objectifs principaux sont les suivants :
+
+\begin{itemize}
+  \item \textbf{Objectifs ML}~: construire un modèle de classification de texte performant sur un corpus multi-classes (20 catégories), en assurant un prétraitement NLP cohérent entre entraînement et inférence et en obtenant des métriques de performance satisfaisantes (accuracy, F1 pondérée, etc.).
+  \item \textbf{Objectifs DevOps / MLOps}~: mettre en place des pipelines CI/CD pour l'entraînement et le déploiement du modèle, automatiser les tests unitaires et d'intégration, tracer les expériences avec MLflow, générer des rapports CML dans les pull requests et orchestrer un déploiement progressif avec mécanisme de rollback.
+\end{itemize}
+
+\subsection{Périmètre et livrables}
+
+Le périmètre couvre l'ensemble de la chaîne de traitement, depuis la préparation des données textuelles jusqu'au déploiement d'un service d'inférence containerisé :
+
+\begin{itemize}
+  \item un dépôt Git structuré contenant le code source, les scripts d'entraînement et de prétraitement, les tests et les workflows GitHub Actions ;
+  \item un pipeline de données reproduisible pour le téléchargement, le nettoyage, le prétraitement et le découpage du jeu de données ;
+  \item un modèle de classification accompagné de ses artefacts (vectoriseur, métriques, rapports) ;
+  \item une API FastAPI packagée dans une image Docker ;
+  \item des pipelines CI/CD intégrant tests, build/push Docker, génération de rapports CML et déploiement \emph{staging} $\rightarrow$ \emph{production} avec rollback.
+\end{itemize}
+
+%========================
+% 2. Description fonctionnelle et données
+%========================
+\section{Description fonctionnelle et données}
+
+\subsection{Cas d'usage métier}
+
+Selon l'énoncé du Projet~9, le contexte est celui d'un journal en ligne qui veut automatiser la catégorisation de ses articles. Chaque texte doit être attribué à une catégorie thématique (informatique, sport, politique, religion, etc.), ce qui permet :
+
+\begin{itemize}
+  \item d'améliorer l'expérience utilisateur (navigation par rubrique, recommandations) ;
+  \item d'aider la rédaction à analyser la répartition des contenus ;
+  \item de préparer des cas d'usage en aval (recherche, personnalisation).
+\end{itemize}
+
+\subsection{Jeu de données et splits}
+
+La solution implémentée s'appuie sur le dataset public \emph{20 Newsgroups} :
+
+\begin{itemize}
+  \item \textbf{Entrée}~: texte brut (emails / articles en anglais).
+  \item \textbf{Labels}~: 20 classes correspondant à des groupes de discussion (informatique, sport, politique, religion, etc.).
+  \item \textbf{Chargement}~: via \texttt{sklearn.datasets.fetch\_20newsgroups}, en supprimant en-têtes, pieds de page et citations afin de limiter les biais.
+\end{itemize}
+
+Le pipeline de préparation découpe le dataset en trois ensembles distincts :
+
+\begin{itemize}
+  \item \textbf{Train}~: 70\% des données, utilisé pour l'entraînement du modèle.
+  \item \textbf{Validation}~: 15\% des données, utilisé pour le réglage d'hyperparamètres et la comparaison de variantes.
+  \item \textbf{Test}~: 15\% des données, réservé à l'évaluation finale.
+\end{itemize}
+
+Ces splits sont stratifiés sur la variable \texttt{target} afin de conserver la distribution des classes dans chaque sous-ensemble.
+
+\subsection{Contraintes et critères de succès}
+
+Les principaux critères de succès sont :
+
+\begin{itemize}
+  \item une performance de classification correcte (par exemple accuracy et F1 pondérée significatives) sur le jeu de test ;
+  \item un prétraitement NLP cohérent entre la phase d'entraînement et le service d'inférence ;
+  \item des pipelines CI/CD capables de reconstruire le modèle, d'exécuter les tests et de déployer automatiquement un service à jour ;
+  \item la possibilité de diagnostiquer les performances via MLflow et CML (rapports automatiques dans les pull requests).
+\end{itemize}
+
+%========================
+% 3. Architecture globale MLOps
+%========================
+\section{Architecture globale MLOps}
+
+\subsection{Vue d'ensemble}
+
+L'architecture globale suit un flux de bout en bout :
+
+\begin{enumerate}
+  \item Préparation des données textuelles (téléchargement, nettoyage, prétraitement, splits).
+  \item Entraînement du modèle de classification et évaluation sur le jeu de test.
+  \item Suivi expérimental avec MLflow (métriques, artefacts, hyperparamètres).
+  \item Export des artefacts (modèle et vectoriseur) dans un répertoire dédié.
+  \item Packaging du service d'inférence dans une image Docker (API FastAPI).
+  \item Orchestration de workflows CI/CD GitHub Actions pour lancer les tests, construire/publier l'image, générer un rapport CML et déployer en \emph{staging} puis en \emph{production}, avec rollback en cas d'échec.
+\end{enumerate}
+
+\subsection{Organisation des répertoires}
+
+La structure générale du dépôt est la suivante :
+
+\begin{itemize}
+  \item \texttt{src/}~: code source Python principal
+  \begin{itemize}
+    \item \texttt{preprocess.py}~: téléchargement et préparation des données.
+    \item \texttt{train.py}~: entraînement, évaluation, logging MLflow et sauvegarde des artefacts.
+    \item \texttt{app.py}~: API FastAPI exposant les endpoints \texttt{/health} et \texttt{/predict}.
+    \item \texttt{predict.py}~: script de prédiction en ligne de commande.
+  \end{itemize}
+  \item \texttt{data/processed/}~: données prétraitées (\texttt{train.csv}, \texttt{validation.csv}, \texttt{test.csv}).
+  \item \texttt{models/}~: artefacts de modèle (fichiers \texttt{model.joblib} et \texttt{tfidf\_vectorizer.joblib}).
+  \item \texttt{reports/}~: \texttt{metrics.json}, \texttt{classification\_report.txt} et la matrice de confusion (\texttt{confusion\_matrix.png}).
+  \item \texttt{tests/}~: tests unitaires et d'intégration.
+  \item \texttt{.github/workflows/}~: pipelines CI/CD GitHub Actions (\texttt{docker.yaml}, \texttt{cml.yaml}, \texttt{deploy.yaml}).
+  \item \texttt{Dockerfile}~: définition de l'image de service pour l'API.
+\end{itemize}
+
+%========================
+% 4. Pipeline de données et modèle NLP
+%========================
+\section{Pipeline de données et modèle NLP}
+
+\subsection{Préparation des données}
+
+Le script \texttt{src/preprocess.py} implémente un pipeline de préparation standard :
+
+\begin{enumerate}
+  \item Téléchargement du dataset \emph{20 Newsgroups} via \texttt{sklearn.datasets.fetch\_20newsgroups}, avec suppression des en-têtes, pieds de page et citations pour limiter les biais.
+  \item Construction d'un \texttt{DataFrame} pandas contenant les colonnes \texttt{text} (texte brut) et \texttt{target} (label).
+  \item Nettoyage simple via \texttt{clean\_text}~: mise en minuscules, suppression de la ponctuation, des chiffres et des espaces superflus.
+  \item Traitement linguistique via \texttt{process\_text}~: tokenisation NLTK, suppression des stopwords anglais, lemmatisation \texttt{WordNetLemmatizer}.
+  \item Filtrage des exemples dont le texte prétraité est vide.
+  \item Découpage en ensembles d'apprentissage, validation et test avec \texttt{train\_test\_split} en respectant une stratification sur \texttt{target} (70\% train, 15\% validation, 15\% test).
+  \item Sauvegarde des trois ensembles au format CSV dans \texttt{data/processed/}.
+\end{enumerate}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.6\textwidth]{snapshots/pipeline.png}
+  \caption{Diagramme du pipeline de données}
+\end{figure}
+
+\subsection{Modélisation et entraînement}
+
+Le script \texttt{src/train.py} orchestre la partie \emph{training} :
+
+\begin{itemize}
+  \item Chargement des fichiers \texttt{train.csv} et \texttt{test.csv} préalablement générés.
+  \item Nettoyage des valeurs manquantes sur la colonne \texttt{processed\_text}.
+  \item Vectorisation TF--IDF des textes (\texttt{TfidfVectorizer} de \texttt{scikit-learn}) avec un nombre maximal de caractéristiques fixé initialement à 5000, puis ajustable (par exemple 10000).
+  \item Entraînement d'une forêt aléatoire (\texttt{RandomForestClassifier}) avec 100 arbres, \texttt{random\_state=42} et \texttt{n\_jobs=-1}.
+  \item Évaluation sur le jeu de test avec les métriques~: accuracy, précision, rappel et F1 pondérés.
+  \item Génération d'un rapport détaillé par classe via \texttt{classification\_report} et d'une matrice de confusion.
+  \item Sauvegarde locale des métriques (\texttt{metrics.json}), du rapport texte (\texttt{classification\_report.txt}) et de la matrice de confusion (\texttt{confusion\_matrix.png}).
+  \item Sauvegarde des artefacts de modèle~: \texttt{model.joblib} et \texttt{tfidf\_vectorizer.joblib} dans \texttt{models/}.
+\end{itemize}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{snapshots/train_eval.png}
+  \caption{Diagramme du pipeline d'entraînement et d'évaluation du modèle}
+\end{figure}
+
+\subsection{Évaluation et validation du modèle}
+
+Les performances du modèle sont évaluées principalement à l'aide de l'accuracy et de la F1-score pondérée. La matrice de confusion permet d'analyser les confusions entre classes. Ces métriques servent de base pour :
+
+\begin{itemize}
+  \item comparer différentes configurations d'hyperparamètres (par exemple la valeur de \texttt{max\_features}) ;
+  \item définir des seuils minimums de performance à respecter avant tout déploiement en production ;
+  \item alimenter les rapports CML générés automatiquement dans les pull requests.
+\end{itemize}
+
+%========================
+% 5. Suivi expérimental et gestion des modèles
+%========================
+\section{Suivi expérimental et gestion des modèles}
+
+\subsection{Tracking des expériences avec MLflow}
+
+L'ensemble de l'expérience est instrumenté avec \texttt{MLflow} :
+
+\begin{itemize}
+  \item \texttt{mlflow.set\_tracking\_uri("file:./mlruns")} configure un backend local pour le stockage des runs.
+  \item \texttt{mlflow.set\_experiment("Text\_Classification\_Projet9")} permet de regrouper tous les essais liés à ce projet.
+  \item Les hyperparamètres (\texttt{max\_features}, \texttt{n\_estimators}, etc.), les métriques d'évaluation, la matrice de confusion et les artefacts (\texttt{model}, \texttt{tfidf\_vectorizer.joblib}) sont systématiquement loggés.
+\end{itemize}
+
+L'interface MLflow UI permet de comparer rapidement plusieurs runs, de suivre l'évolution des performances et de sélectionner une configuration de modèle à promouvoir.
+
+\subsection{Gestion des artefacts}
+
+Les artefacts générés par le pipeline (modèle sérialisé, vectoriseur TF--IDF, métriques, rapports, visualisations) sont :
+
+\begin{itemize}
+  \item sauvegardés dans des répertoires dédiés du dépôt (\texttt{models/}, \texttt{reports/}) ;
+  \item loggés dans MLflow pour conserver un historique versionné ;
+  \item consommés par les workflows CI/CD (par exemple pour générer les rapports CML).
+\end{itemize}
+
+Cette organisation facilite la reprise d'expériences antérieures et simplifie le déploiement du modèle sélectionné.
+
+%========================
+% 6. Service d'inférence et packaging
+%========================
+\section{Service d'inférence et packaging}
+
+\subsection{API FastAPI}
+
+Le service de prédiction est implémenté dans \texttt{src/app.py} avec FastAPI :
+
+\begin{itemize}
+  \item utilisation d'un gestionnaire de cycle de vie (\texttt{lifespan}) pour charger les artefacts au démarrage de l'application~: modèle, vectoriseur TF--IDF, stopwords et lemmatiseur NLTK ;
+  \item endpoint \texttt{GET /health} qui retourne un statut \texttt{ok} et indique si le modèle est correctement chargé ;
+  \item endpoint \texttt{POST /predict} acceptant un payload JSON contenant un champ \texttt{text} ; le texte est prétraité avec les mêmes fonctions que celles utilisées pour l'entraînement, vectorisé, puis passé au modèle ;
+  \item la réponse contient le texte d'origine, l'identifiant de classe prédit (\texttt{prediction\_class\_id}) et un champ \texttt{status}.
+\end{itemize}
+
+Un script \texttt{src/predict.py} fournit également une interface en ligne de commande pour charger les artefacts et réaliser une prédiction sur un exemple de texte.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{snapshots/fastapi-predict.png}
+  \caption{Exemple de requête/réponse de l'API FastAPI}
+\end{figure}
+
+\subsection{Containerisation Docker}
+
+Le \texttt{Dockerfile} définit l'image de service pour l'API :
+
+\begin{itemize}
+  \item utilisation de l'image de base \texttt{python:3.9-slim} ;
+  \item installation des dépendances Python via \texttt{requirements.txt} ;
+  \item téléchargement des ressources NLTK nécessaires en amont pour éviter les téléchargements au runtime ;
+  \item copie du code source, des artefacts de modèle et des données prétraitées dans l'image ;
+  \item exposition du port~8000 et lancement de l'application via Uvicorn (ASGI).
+\end{itemize}
+
+Cette containerisation garantit un environnement reproductible pour exécuter le service d'inférence sur différentes machines ou plateformes de déploiement.
+
+%========================
+% 7. Stratégie de tests et validation
+%========================
+\section{Stratégie de tests et validation}
+
+\subsection{Tests unitaires et d'intégration}
+
+Le répertoire \texttt{tests/} contient des tests couvrant les points suivants :
+
+\begin{itemize}
+  \item fonctions de prétraitement~: nettoyage du texte, tokenisation, suppression des stopwords, lemmatisation ;
+  \item scripts de pipeline~: vérification de la génération des fichiers \texttt{train.csv}, \texttt{validation.csv}, \texttt{test.csv}, présence des artefacts de modèle ;
+  \item service d'API~: tests des endpoints \texttt{/health} et \texttt{/predict} (statuts HTTP, structure des réponses, gestion d'entrées invalides).
+\end{itemize}
+
+Ces tests sont exécutés automatiquement dans les workflows CI avant la construction de l'image Docker.
+
+\subsection{Validation de modèle}
+
+Au-delà des tests techniques, la validation du modèle s'appuie sur :
+
+\begin{itemize}
+  \item des métriques quantitatives loggées dans MLflow (accuracy, F1 pondérée, etc.) ;
+  \item des artefacts d'analyse (matrice de confusion, rapport de classification) ;
+  \item un seuil d'accuracy configuré dans le workflow de déploiement (\texttt{MIN\_ACCURACY}) qui conditionne la promotion du modèle en production.
+\end{itemize}
+
+Cette validation automatisée permet de réduire le risque de déployer un modèle dégradé.
+
+%========================
+% 8. Pipelines CI/CD et déploiement
+%========================
+\section{Pipelines CI/CD et déploiement}
+
+\subsection{Build, tests et image Docker}
+
+Le workflow \texttt{.github/workflows/docker.yaml} implémente une pipeline de CI centrée sur la construction de l'image de service :
+
+\begin{itemize}
+  \item déclenchement sur \texttt{push} et \texttt{pull\_request} vers la branche \texttt{master} ;
+  \item installation de Python~3.9 et des dépendances à partir de \texttt{requirements.txt} ;
+  \item exécution séquentielle de \texttt{src/preprocess.py} puis \texttt{src/train.py} afin de régénérer les données prétraitées et les artefacts de modèle ;
+  \item lancement de la suite de tests \texttt{pytest tests/ -v} ;
+  \item connexion au registre GitHub Container Registry (\texttt{ghcr.io}) et construction de l'image Docker à partir du \texttt{Dockerfile}, avec publication optionnelle des tags (\texttt{latest}, \texttt{sha}) sur les branches non-\texttt{pull\_request}.
+\end{itemize}
+
+Le \texttt{Dockerfile} correspondant utilise \texttt{python:3.9-slim} comme base, installe les dépendances, télécharge les ressources NLTK nécessaires, copie les sources, les artefacts et les données prétraitées, expose le port~8000 et lance l'application via Uvicorn.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.4\textwidth]{snapshots/docker_build.png}
+  \caption{Diagramme du workflow de build, tests et construction/push de l'image Docker}
+\end{figure}
+
+\subsection{Rapport automatique avec CML}
+
+Le workflow \texttt{.github/workflows/cml.yaml} s'appuie sur \texttt{iterative/setup-cml} pour générer un rapport expérimental automatique :
+
+\begin{itemize}
+  \item installation des dépendances, exécution du pipeline de prétraitement et d'entraînement ;
+  \item création d'un fichier \texttt{report.md} contenant~:
+  \begin{itemize}
+    \item un titre ;
+    \item les métriques au format JSON (\texttt{metrics.json}) ;
+    \item le rapport de classification détaillé (\texttt{classification\_report.txt}) ;
+    \item la matrice de confusion publiée comme image via \texttt{cml publish}.
+  \end{itemize}
+  \item publication automatique du rapport en commentaire sur la pull request via \texttt{cml comment create}.
+\end{itemize}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.4\textwidth]{snapshots/cml_workflow.png}
+  \caption{Diagramme du workflow de génération automatique du rapport CML}
+\end{figure}
+
+\subsection{Déploiement staging $\rightarrow$ production et rollback}
+
+Le workflow \texttt{.github/workflows/deploy.yaml} met en place une logique de déploiement en deux phases :
+
+\begin{itemize}
+  \item il se déclenche à la complétion du workflow \og Docker Build \& Push \fg{} sur la branche \texttt{master} ;
+  \item job \textbf{deploy-staging} :
+  \begin{itemize}
+    \item récupère la dernière image Docker depuis le registre ;
+    \item lance un conteneur en environnement \emph{staging} sur le port 8000 ;
+    \item effectue des tests d'intégration simples via \texttt{curl} sur les endpoints \texttt{/health} et \texttt{/predict} ;
+    \item vérifie que le modèle est bien chargé (\texttt{model\_loaded=true}) et fixe une accuracy simulée (0{,}64) pour illustrer la validation.
+  \end{itemize}
+  \item job \textbf{deploy-production} (conditionné par le succès du \emph{staging}) :
+  \begin{itemize}
+    \item vérifie que l'accuracy renvoyée dépasse un seuil minimum configurable (\texttt{MIN\_ACCURACY}, par défaut 0{,}5), en utilisant \texttt{bc} pour la comparaison flottante ;
+    \item \og déploie \fg{} l'image en production (placeholder avec traces dans les logs et possibilités futures de déploiement Kubernetes ou SSH) ;
+    \item marque la version comme release de production (étapes de tagging commentées mais prévues).
+  \end{itemize}
+  \item job \textbf{rollback} :
+  \begin{itemize}
+    \item se déclenche en cas d'échec du \emph{staging} ou de la production ;
+    \item journalise les actions de rollback prévues (restauration d'une version précédente, notifications, sauvegarde des logs) ;
+    \item crée automatiquement un ticket GitHub décrivant le rollback.
+  \end{itemize}
+\end{itemize}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.6\textwidth]{snapshots/deploy_pipeline.png}
+  \caption{Diagramme du workflow de déploiement staging $\rightarrow$ production avec rollback}
+\end{figure}
+
+%========================
+% 9. Monitoring et exploitation
+%========================
+\section{Monitoring et exploitation}
+
+Le monitoring actuel repose principalement sur :
+
+\begin{itemize}
+  \item les endpoints \texttt{/health} et \texttt{/predict}, utilisés dans les tests d'intégration et le workflow de déploiement pour vérifier que le service est opérationnel et que le modèle est chargé ;
+  \item les métriques et artefacts loggés dans MLflow, permettant un suivi des performances au fil des expériences ;
+  \item les rapports CML générés dans les pull requests, qui résument les performances du dernier entraînement.
+\end{itemize}
+
+En l'état, il n'existe pas encore de monitoring runtime complet (collecte de métriques en production, détection de dérive de données, alertes automatiques). Ces aspects sont identifiés comme des axes d'amélioration majeurs.
+
+%========================
+% 10. Limites et axes d'amélioration
+%========================
+\section{Limites et axes d'amélioration}
+
+\subsection{Limites du modèle et des données}
+
+\begin{itemize}
+  \item \textbf{Modèle classique uniquement}~: l'utilisation d'un Random Forest sur des features TF--IDF est simple mais ne profite pas des avancées récentes en NLP (transformers, embeddings contextuels, etc.).
+  \item \textbf{Pas de tuning systématique}~: les hyperparamètres (\texttt{max\_features}, \texttt{n\_estimators}) sont fixés en dur, sans recherche automatisée (Grid Search, Random Search ou optimisation bayésienne).
+  \item \textbf{Prétraitement basique}~: pas de prise en compte d'éléments comme les bigrammes/trigrammes, la détection de langue, la gestion des caractères spéciaux ou des émojis.
+  \item \textbf{Gestion partielle des labels}~: la correspondance entre identifiant de classe et nom de catégorie n'est pas exposée dans l'API, ce qui complique l'interprétation métier.
+\end{itemize}
+
+\subsection{Limites MLOps / CI/CD}
+
+\begin{itemize}
+  \item \textbf{Tracking local uniquement}~: MLflow est configuré en mode fichier local, ce qui limite l'utilisation en environnement distribué ou multi-utilisateurs.
+  \item \textbf{Absence de véritable registry de modèles}~: il n'existe pas encore de gestion de versions de modèles avec promotion formelle (staging/production) au niveau du \emph{model registry}.
+  \item \textbf{Couplage fort pipeline--build}~: le workflow de build exécute systématiquement prétraitement et entraînement avant les tests, ce qui rallonge les temps de CI et peut être coûteux.
+  \item \textbf{Seuil de performance codé en dur}~: l'accuracy utilisée dans le déploiement est actuellement simulée (valeur fixe 0{,}64), ce qui réduit le réalisme de la validation automatisée.
+  \item \textbf{Monitoring runtime absent}~: pas de collecte de logs métier, de métriques en production, ni de détection de dérive de données ou de performance.
+\end{itemize}
+
+\subsection{Sécurité, robustesse et industrialisation}
+
+\begin{itemize}
+  \item \textbf{Gestion des ressources NLTK}~: le téléchargement des ressources NLTK au démarrage (dans \texttt{app.py}) peut être fragile en contexte de production (dépendance réseau) même si le Dockerfile anticipe déjà certains téléchargements.
+  \item \textbf{Tests limités}~: les tests couvrent les points clés (API, prétraitement, artefacts) mais ne couvrent pas tous les cas d'erreur (entrées invalides, timeouts, modèles manquants, etc.).
+  \item \textbf{Configuration statique}~: les chemins, hyperparamètres et URI MLflow sont codés dans le code ; une externalisation via des variables d'environnement ou des fichiers de configuration renforcerait la flexibilité.
+  \item \textbf{Déploiement simplifié}~: le job de déploiement est illustratif (logs, placeholders pour Kubernetes ou SSH) sans intégration à une infrastructure réelle.
+\end{itemize}
+
+%========================
+% 11. Conclusion
+%========================
+\section{Conclusion}
+
+Le projet illustre un pipeline MLOps cohérent de bout en bout pour la classification de texte~: préparation des données, entraînement, suivi expérimental, exposition d'une API, containerisation et automatisation CI/CD avec rapport CML et logique de déploiement \emph{staging} $\rightarrow$ \emph{production}. Les choix techniques privilégient la simplicité et la pédagogie (Random Forest + TF--IDF, MLflow local, GitHub Actions, CML) et offrent une base solide pour explorer les bonnes pratiques MLOps.
+
+Les principales pistes d'amélioration concernent la modernisation du modèle (transformers), la mise en place d'un véritable registry et d'un tracking centralisé, l'enrichissement des tests et du monitoring en production, ainsi que la dé-corrélation des pipelines de data science et des pipelines de build/déploiement.
+
+\end{document}
+
