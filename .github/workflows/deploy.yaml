@@ -149,16 +149,8 @@ jobs:
               -p 8000:8000 \
               --name app \
               ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-
-            # Installe et configure Nginx pour servir le frontend Angular
-            sudo apt-get update
-            sudo apt-get install -y nginx
-            sudo rm -rf /var/www/html/*
-            sudo mkdir -p /var/www/html
-            sudo cp -r ~/frontend-dist/* /var/www/html/
-            sudo chown -R www-data:www-data /var/www/html
-            sudo systemctl enable nginx
-            sudo systemctl restart nginx
+            
+            echo "✅ API Backend déployée sur le port 8000"
 
       - name: Tag as Production Release
         run: |
