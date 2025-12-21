@@ -118,14 +118,15 @@ jobs:
           npm ci
           npm run build
 
-      - name: Upload Angular dist to Oracle server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          source: "frontend/dist/frontend/browser/*"
-          target: "/home/${{ secrets.SSH_USER }}/frontend-dist"
+      # Step disabled - no Oracle server configured
+      # - name: Upload Angular dist to Oracle server
+      #   uses: appleboy/scp-action@v0.1.7
+      #   with:
+      #     host: ${{ secrets.SSH_HOST }}
+      #     username: ${{ secrets.SSH_USER }}
+      #     key: ${{ secrets.SSH_KEY }}
+      #     source: "frontend/dist/frontend/browser/*"
+      #     target: "/home/${{ secrets.SSH_USER }}/frontend-dist"
 
       - name: Deploy to Production
         run: |
