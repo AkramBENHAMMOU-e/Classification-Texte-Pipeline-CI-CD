@@ -27,28 +27,38 @@ def main():
     test_df = test_df.dropna(subset=['processed_text'])
 
     # Paramètres du modèle
-    MAX_FEATURES = 10000
-    N_ESTIMATORS = 100
+    # Utilisation d'un seul modèle : LinearSVC (le plus performant pour la classification de texte)
+    NGRAM_RANGE = (1, 2)
     
     # Démarrage du run MLflow
     with mlflow.start_run() as run:
         print(f"MLflow Run ID: {run.info.run_id}")
         
-        # Log des hyperparamètres
-        mlflow.log_param("max_features", MAX_FEATURES)
-        mlflow.log_param("n_estimators", N_ESTIMATORS)
-
+        mlflow.log_param("model_type", "LinearSVC")
+        mlflow.log_param("ngram_range", str(NGRAM_RANGE))
+        
         print("Vectorisation (TF-IDF)...")
-        # TF-IDF : on apprend uniquement sur le train
-        vectorizer = TfidfVectorizer(max_features=MAX_FEATURES)
+        vectorizer = TfidfVectorizer(
+            ngram_range=NGRAM_RANGE, 
+            sublinear_tf=True, 
+            min_df=3,
+            max_df=0.5
+        )
         X_train = vectorizer.fit_transform(train_df['processed_text'])
         X_test = vectorizer.transform(test_df['processed_text'])
         
         y_train = train_df['target']
         y_test = test_df['target']
+        
+        print(f"Dimensionnalité: {X_train.shape}")
 
-        print("Entraînement (RandomForest)...")
-        model = RandomForestClassifier(n_estimators=N_ESTIMATORS, random_state=42, n_jobs=-1)
+        print("Entraînement (LinearSVC avec calibration pour obtenir les probabilités)...")
+        from sklearn.svm import LinearSVC
+        from sklearn.calibration import CalibratedClassifierCV
+        
+        # LinearSVC n'a pas de predict_proba, on utilise CalibratedClassifierCV pour obtenir les probabilités
+        base_model = LinearSVC(random_state=42, C=1.0, max_iter=3000)
+        model = CalibratedClassifierCV(base_model, cv=3)
         model.fit(X_train, y_train)
 
         print("Évaluation...")

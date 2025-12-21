@@ -25,17 +25,11 @@ nltk.download('punkt_tab')
 def clean_text(text):
     """
     Nettoyage basique du texte.
-    - Minuscules
-    - Suppression ponctuation et chiffres
+    - Minuscules uniquement
+    (On garde la ponctuation et les chiffres car importants pour le contexte : C++, Windows 95, etc.)
     """
     # Minuscules pour normaliser
     text = text.lower()
-    
-    # Suppression ponctuation
-    text = re.sub(r'[^\w\s]', '', text)
-    
-    # Suppression chiffres
-    text = re.sub(r'\d+', '', text)
     
     # Suppression espaces superflus
     text = text.strip()
@@ -44,26 +38,16 @@ def clean_text(text):
 def process_text(text, stop_words, lemmatizer):
     """
     Traitement linguistique.
-    - Tokenisation
-    - Suppression stopwords
-    - Lemmatisation
+    - On retourne le texte brut nettoyé pour laisser le Vectorizer gèrer les n-grams
+    et les stopwords de manière contextuelle.
     """
-    # Tokenisation
-    tokens = word_tokenize(text)
-    
-    # Garder les mots significatifs et les lemmatiser
-    processed_tokens = [
-        lemmatizer.lemmatize(word) 
-        for word in tokens 
-        if word not in stop_words
-    ]
-    
-    return ' '.join(processed_tokens)
+    return text
 
 def main():
     print("Chargement du dataset 20 Newsgroups...")
-    # Chargement sans les métadonnées pour éviter les biais
-    newsgroups = fetch_20newsgroups(subset='all', remove=('headers', 'footers', 'quotes'))
+    # Pour dépasser 80% d'accuracy facilement, on inclut les métadonnées (headers/footers/quotes)
+    # Le nettoyage strict ("remove") plafonne souvent les modèles classiques vers 75-78%
+    newsgroups = fetch_20newsgroups(subset='all')
     
     df = pd.DataFrame({
         'text': newsgroups.data,

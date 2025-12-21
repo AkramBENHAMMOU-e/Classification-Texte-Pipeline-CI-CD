@@ -21,29 +21,24 @@ def test_clean_text_lowercase():
     raw = "Hello World"
     assert clean_text(raw) == "hello world"
 
-def test_clean_text_remove_punctuation():
-    """Vérifie suppression ponctuation et chiffres."""
+def test_clean_text_keeps_punctuation_and_numbers():
+    """Vérifie que la ponctuation et les chiffres sont conservés (important pour C++, Win95, etc.)."""
     raw = "Hello, world! 123"
-    expected = "hello world " # L'espace final peut dépendre de l'implémentation du regex
-    # On strip pour être sûr
-    assert clean_text(raw).strip() == "hello world"
+    # Le nouveau preprocessing garde la ponctuation et les nombres
+    assert clean_text(raw).strip() == "hello, world! 123"
 
-def test_process_text_lemmatization(lemmatizer, stop_words):
-    """Vérifie la lemmatisation standard."""
+def test_process_text_passthrough(lemmatizer, stop_words):
+    """Vérifie que process_text retourne le texte tel quel (TF-IDF gère le reste)."""
     raw_cleaned = "cats are running"
-    # cats -> cat, are -> be (selon modèle wordnet mais 'are' est often stopword), running -> running (adj) ou run (v)
-    # process_text fait aussi le retrait des stop words
-    # 'are' est un stop word
+    # Le nouveau preprocessing retourne le texte sans modification
     result = process_text(raw_cleaned, stop_words, lemmatizer)
-    assert "cat" in result
-    assert "run" in result or "running" in result 
+    assert result == "cats are running"
 
-def test_process_text_stopwords(lemmatizer, stop_words):
-    """Vérifie que les stop words sont retirés."""
+def test_process_text_keeps_all_words(lemmatizer, stop_words):
+    """Vérifie que process_text conserve tous les mots (TF-IDF gère les stopwords)."""
     raw_cleaned = "this is a test"
-    # this, is, a -> stopwords
-    # test -> test
+    # Le nouveau preprocessing retourne le texte sans modification
     result = process_text(raw_cleaned, stop_words, lemmatizer)
-    assert "this" not in result
-    assert "is" not in result
+    assert "this" in result
+    assert "is" in result
     assert "test" in result
