@@ -1,12 +1,12 @@
-import re
 import nltk
 import pandas as pd
 from sklearn.datasets import fetch_20newsgroups
 from sklearn.model_selection import train_test_split
 from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 import os
+from pathlib import Path
+from urllib.error import HTTPError
 
 """
 Pré-traitement des données (Preprocessing).
@@ -15,12 +15,23 @@ Ce script télécharge les "20 Newsgroups", nettoie le texte, et prépare
 les jeux d'entraînement, de validation et de test pour le modèle.
 """
 
-# Téléchargement des ressources NLTK
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('wordnet')
-nltk.download('omw-1.4')
-nltk.download('punkt_tab')
+def ensure_nltk_data() -> None:
+    """
+    Assure la présence des ressources NLTK requises.
+    (Télécharge uniquement si manquantes.)
+    """
+    resources = [
+        ("tokenizers/punkt", "punkt"),
+        ("tokenizers/punkt_tab", "punkt_tab"),
+        ("corpora/stopwords", "stopwords"),
+        ("corpora/wordnet", "wordnet"),
+        ("corpora/omw-1.4", "omw-1.4"),
+    ]
+    for resource_path, resource_name in resources:
+        try:
+            nltk.data.find(resource_path)
+        except LookupError:
+            nltk.download(resource_name, quiet=True)
 
 def clean_text(text):
     """
@@ -44,10 +55,30 @@ def process_text(text, stop_words, lemmatizer):
     return text
 
 def main():
+    ensure_nltk_data()
+
+    project_root = Path(__file__).resolve().parents[1]
+    processed_dir = project_root / "data" / "processed"
+    train_path = processed_dir / "train.csv"
+    val_path = processed_dir / "validation.csv"
+    test_path = processed_dir / "test.csv"
+
+    # En CI, on évite de retélécharger 20 Newsgroups (source externe parfois bloquée / 403).
+    if train_path.exists() and val_path.exists() and test_path.exists():
+        print("Données 'data/processed' déjà présentes, preprocessing ignoré.")
+        return
+
     print("Chargement du dataset 20 Newsgroups...")
     # Pour dépasser 80% d'accuracy facilement, on inclut les métadonnées (headers/footers/quotes)
     # Le nettoyage strict ("remove") plafonne souvent les modèles classiques vers 75-78%
-    newsgroups = fetch_20newsgroups(subset='all')
+    try:
+        newsgroups = fetch_20newsgroups(subset="all")
+    except HTTPError as e:
+        raise RuntimeError(
+            "Impossible de télécharger 20 Newsgroups (HTTPError). "
+            "Si vous êtes en CI, committez les fichiers 'data/processed/*.csv' "
+            "ou exécutez le preprocessing en local puis push."
+        ) from e
     
     df = pd.DataFrame({
         'text': newsgroups.data,
@@ -77,12 +108,12 @@ def main():
     # Séparation validation / test
     val_df, test_df = train_test_split(temp_df, test_size=0.5, random_state=42, stratify=temp_df['target'])
     
-    os.makedirs('data/processed', exist_ok=True)
+    processed_dir.mkdir(parents=True, exist_ok=True)
     
     print("Sauvegarde CSV...")
-    train_df.to_csv('data/processed/train.csv', index=False)
-    val_df.to_csv('data/processed/validation.csv', index=False)
-    test_df.to_csv('data/processed/test.csv', index=False)
+    train_df.to_csv(train_path, index=False)
+    val_df.to_csv(val_path, index=False)
+    test_df.to_csv(test_path, index=False)
     
     print(f"Terminé ! Train: {train_df.shape}, Val: {val_df.shape}, Test: {test_df.shape}")
 
