@@ -1,3 +1,4 @@
+import argparse
 import pandas as pd
 import joblib
 import os
@@ -10,10 +11,18 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, f1_score, classification_report, precision_score, recall_score, confusion_matrix
 
-def main():
-    # Configuration MLflow
-    mlflow.set_tracking_uri("file:./mlruns")
-    mlflow.set_experiment("Text_Classification_Projet9")
+def main(run_name=None):
+    # Configuration MLflow (support local ou distant, cohérent avec train_old.py)
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns")
+    experiment_name = os.getenv("MLFLOW_EXPERIMENT_NAME", "Text_Classification_Projet9")
+
+    # Nom du run MLflow (CLI > env > défaut MLflow)
+    if run_name is None:
+        run_name = os.getenv("MLFLOW_RUN_NAME")
+
+    mlflow.set_tracking_uri(tracking_uri)
+    mlflow.set_experiment(experiment_name)
+    print(f"MLflow tracking URI: {tracking_uri}")
 
     print("Chargement des données nettoyées...")
     try:
@@ -26,23 +35,40 @@ def main():
     train_df = train_df.dropna(subset=['processed_text'])
     test_df = test_df.dropna(subset=['processed_text'])
 
-    # Paramètres du modèle
+    # Paramètres du modèle / représentation du texte
+    MAX_FEATURES = 50000
     # Utilisation d'un seul modèle : LinearSVC (le plus performant pour la classification de texte)
     NGRAM_RANGE = (1, 2)
+    MIN_DF = 2
+    MAX_DF = 0.5
+    SUBLINEAR_TF = True
+
+    # Paramètres SVM / calibration (pour suivi MLflow)
+    SVM_C_VALUES = [1.0]
+    CV_FOLDS = 3
     
     # Démarrage du run MLflow
-    with mlflow.start_run() as run:
+    with mlflow.start_run(run_name=run_name) as run:
         print(f"MLflow Run ID: {run.info.run_id}")
         
+        # Log de paramètres alignés avec train_old.py
+        mlflow.log_param("max_features", MAX_FEATURES)
+        mlflow.log_param("ngram_range", f"{NGRAM_RANGE[0]}_{NGRAM_RANGE[1]}")
+        mlflow.log_param("min_df", MIN_DF)
+        mlflow.log_param("max_df", MAX_DF)
+        mlflow.log_param("sublinear_tf", SUBLINEAR_TF)
         mlflow.log_param("model_type", "LinearSVC")
-        mlflow.log_param("ngram_range", str(NGRAM_RANGE))
+        mlflow.log_param("svm_C_candidates", ",".join(map(str, SVM_C_VALUES)))
+        mlflow.log_param("cv_folds", CV_FOLDS)
+        mlflow.log_param("best_C", SVM_C_VALUES[0])
         
         print("Vectorisation (TF-IDF)...")
         vectorizer = TfidfVectorizer(
+            max_features=MAX_FEATURES,
             ngram_range=NGRAM_RANGE, 
-            sublinear_tf=True, 
-            min_df=3,
-            max_df=0.5
+            sublinear_tf=SUBLINEAR_TF, 
+            min_df=MIN_DF,
+            max_df=MAX_DF
         )
         X_train = vectorizer.fit_transform(train_df['processed_text'])
         X_test = vectorizer.transform(test_df['processed_text'])
@@ -57,8 +83,8 @@ def main():
         from sklearn.calibration import CalibratedClassifierCV
         
         # LinearSVC n'a pas de predict_proba, on utilise CalibratedClassifierCV pour obtenir les probabilités
-        base_model = LinearSVC(random_state=42, C=1.0, max_iter=3000)
-        model = CalibratedClassifierCV(base_model, cv=3)
+        base_model = LinearSVC(random_state=42, C=SVM_C_VALUES[0], max_iter=3000)
+        model = CalibratedClassifierCV(base_model, cv=CV_FOLDS)
         model.fit(X_train, y_train)
 
         print("Évaluation...")
@@ -128,4 +154,12 @@ def main():
         print("Terminé ! Modèle, métriques, rapport et matrice de confusion sauvegardés (Local + MLflow).")
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Train text classification model with MLflow tracking.")
+    parser.add_argument(
+        "--run-name",
+        type=str,
+        default=None,
+        help="Nom du run MLflow (sinon utilise MLFLOW_RUN_NAME ou le nom par défaut).",
+    )
+    args = parser.parse_args()
+    main(run_name=args.run_name)
